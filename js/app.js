@@ -117,6 +117,7 @@ var viewModel = function() {
 
     // if search textbox is empty
     filtered_arr(locations());
+    try {showMarkers();} catch(err) {console.log(err)}
     return filtered_arr();
   };
 
@@ -130,7 +131,6 @@ var viewModel = function() {
 
   clearSearchBox = function(){
     search("");
-    showMarkers();
   };
 
 };
