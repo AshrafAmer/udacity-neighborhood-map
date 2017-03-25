@@ -1,6 +1,11 @@
 var map;
 
 markers = [];
+var largeInfowindow = null;
+
+function mapError(){
+  alert("Error : can't render the map, please try again later.");
+}
 
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
@@ -8,12 +13,31 @@ function initMap() {
     zoom: 16
   });
 
-  var largeInfowindow = new google.maps.InfoWindow;
-
+  largeInfowindow = new google.maps.InfoWindow();
   var bounds = new google.maps.LatLngBounds();
+
+  showMarkers = function(){
+    largeInfowindow.close();
+    bounds = new google.maps.LatLngBounds();
+    // hide Markers
+    for (var i = 0; i < markers.length; i++) {
+      markers[i].setMap(null);
+    }
+
+    // show only filltered markers
+    for (i = 0; i < filtered_arr().length; i++) {
+      // get marker id by filtered location id
+      index = filtered_arr()[i].id -1;
+      markers[index].setMap(map);
+      bounds.extend(markers[index].position);
+    }
+
+    map.fitBounds(bounds);
+  };
 
   for (var i = 0; i < filtered_arr().length; i++) {
     marker = new google.maps.Marker({
+      id: i,
       position: filtered_arr()[i].location,
       map: map,
       title: filtered_arr()[i].title,
@@ -22,7 +46,7 @@ function initMap() {
 
     markers.push(marker);
 
-    bounds.extend(marker.position)
+    bounds.extend(marker.position);
 
     marker.addListener('click', function(){
       populateInfoWindow(this, largeInfowindow);
@@ -36,32 +60,31 @@ function initMap() {
 
 
     function populateInfoWindow(marker, infowindow){
-      infowindow.marker = marker;
+        // close any opened infowindow
+        infowindow.close();
 
-      $.ajax({
-          url: "http://api.openweathermap.org/data/2.5/weather?lat="+ marker.getPosition().lat() +"&lon="+ marker.getPosition().lng() +"&appid=f5507d4ec960f3e5213b79be8e6fd620&units=metric",
-          success: function(result){
-            renderInfowindow = "<h3>"+marker.title+"<h3><p>"+marker.description+"</p>";
-            renderInfowindow += "<h4>Weather<h4><p><b>Temprature : </b> "+result.main.temp+" °C  <b> &nbsp;&nbsp;&nbsp; Description: </b> "+result.weather[0].description+"</p>";
-            infowindow.setContent(window.renderInfowindow);
-          },
-          error: function(xhr,status,error){
-            renderInfowindow = "<h3>"+marker.title+"<h3><p>"+marker.description+"</p>";
-            renderInfowindow += "<h4>Weather<h4><p>Error : Unable to view weather status, please try again later.</p>";
-            infowindow.setContent(window.renderInfowindow);
-          }
+        $.ajax({
+            url: "http://api.openweathermap.org/data/2.5/weather?lat="+ marker.getPosition().lat() +"&lon="+ marker.getPosition().lng() +"&appid=f5507d4ec960f3e5213b79be8e6fd620&units=metric",
+            success: function(result){
+              renderInfowindow = "<h3>"+marker.title+"<h3><p>"+marker.description+"</p>";
+              renderInfowindow += "<h4>Weather<h4><p><b>Temprature : </b> "+result.main.temp+" °C  <b> &nbsp;&nbsp;&nbsp; Description: </b> "+result.weather[0].description+"</p>";
+              infowindow.setContent(window.renderInfowindow);
+            },
+            error: function(xhr,status,error){
+              renderInfowindow = "<h3>"+marker.title+"<h3><p>"+marker.description+"</p>";
+              renderInfowindow += "<h4>Weather<h4><p>Error : Unable to view weather status, please try again later.</p>";
+              infowindow.setContent(window.renderInfowindow);
+            }
 
-      });
+        });
 
-//
-
-      map.panTo(marker.getPosition());
-      infowindow.open(map, marker);
-      marker.setAnimation(google.maps.Animation.BOUNCE);
-      setTimeout(function () {marker.setAnimation(null); }, 2100);
-      infowindow.addListener('closeclick', function(){
-        infowindow.setMarker(null);
-      });
+        map.panTo(marker.getPosition());
+        infowindow.open(map, marker);
+        marker.setAnimation(google.maps.Animation.BOUNCE);
+        setTimeout(function () {marker.setAnimation(null); }, 2100);
+        infowindow.addListener('closeclick', function(){
+          infowindow.setMarker(null);
+        });
     }
 
 //check if sub_str exsists in a string
@@ -88,32 +111,29 @@ var viewModel = function() {
         if (exists(search(), locations()[i].title))
           filtered_arr.push(locations()[i]);
       }
-      //drawMarkers();
-      initMap();
+      showMarkers();
       return filtered_arr();
     }
 
     // if search textbox is empty
     filtered_arr(locations());
-    try {initMap();} catch(err) {console.log(err)}
     return filtered_arr();
   };
 
   listItemClicked = function(){
-    search(this.title);
+    marker = markers[this.id -1];
+    google.maps.event.trigger(marker, 'click');
+    // populateInfoWindow(marker, largeInfowindow);
+    // map.setZoom(16);
+    // map.setCenter(marker.getPosition());
   };
 
   clearSearchBox = function(){
     search("");
-  }
+    showMarkers();
+  };
 
-  //expand search textBox if is not empty
-  setFocus = ko.pureComputed(function() {
-    // expand search textBox
-    if( search() ) return "is-focused";
-  });
-
-}
+};
 
 
 ko.applyBindings(viewModel);
